@@ -6,119 +6,77 @@
     <title>恋爱画像测评表 | 灵魂伴侣测试</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-    // === 新版验证系统 (含过期检测) ===
-    const AUTH_CONFIG = {
-        SECRET_KEY: "MY_LOVE_SHOP_2026", // 必须和生成器一致
-        VALID_DAYS: 7  // 【设置有效期】这里填 7，代表码生成后7天内必须使用，否则作废
+<script>
+    // ==========================================
+    // === 恋爱画像测评 终极版 (10位标准版) ===
+    // ==========================================
+
+    const CONFIG = { 
+        KEY: "MY_LOVE_SHOP_2026", // 密钥
+        DAYS: 15 // 有效期15天
     };
 
-document.addEventListener("DOMContentLoaded", function() {
-        checkLock();
+    // 1. 进场检查
+    document.addEventListener("DOMContentLoaded", () => {
+        let last = localStorage.getItem("love_unlock_10"); // 用新key防止混淆
+        if(last && (new Date().getTime() - last < 86400000)) return; // 24小时内放行
+        
+        // 否则锁住
+        localStorage.removeItem("love_unlock_10"); 
+        document.getElementById("authModal").classList.add("show");
+        document.getElementById("authModal").style.display = "flex";
     });
 
-    // 获取一年中的第几天
-    function getCurrentDayOfYear() {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), 0, 0);
-        const diff = now - start;
-        const oneDay = 1000 * 60 * 60 * 24;
-        return Math.floor(diff / oneDay);
-    }
-
-    function checkLock() {
-        const unlockTime = localStorage.getItem("scl90_unlock_time");
-        const modal = document.getElementById("authModal");
-
-        // 检查本地缓存是否在24小时内
-        if (unlockTime) {
-            const passed = (new Date().getTime() - parseInt(unlockTime)) / (1000 * 60 * 60);
-            if (passed < 24) return; // 未过期，不显示弹窗
-        }
-        // 否则显示弹窗
-        if(modal) modal.classList.add("show");
-    }
-
+    // 2. 验证按钮点击
     function verifyRedeemCode() {
-        const input = document.getElementById("redeemCode");
-        const code = input.value.trim();
-        const card = document.querySelector(".auth-card");
+        let code = document.getElementById("redeemCode").value.trim();
+        if(code === "1992010600") return pass(code); // 后门
 
-        // 万能后门
-        if (code === "12020000") { unlock(); return; }
+        // A. 长度必须是10位
+        if(code.length !== 10) return alert("请输入10位兑换码");
 
-        // 1. 基础长度检查
-        if (code.length !== 8) {
-            showError("兑换码格式错误");
-            return;
-        }
+        // B. 查黑名单 (防重复使用)
+        let used = JSON.parse(localStorage.getItem("love_used_10")||"[]");
+        if(used.includes(code)) return alert("此码已使用过，请购买新码");
 
-        // 2. 提取信息
-        const codeDayStr = code.substring(0, 3); // 前3位是日期
-        const codeDay = parseInt(codeDayStr);
-        const currentDay = getCurrentDayOfYear();
+        // C. 查有效期 (前3位是日期)
+        let day = parseInt(code.substring(0,3));
+        let now = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+        let diff = now - day;
+        if(diff < -300) diff += 365; // 跨年修正
+        if(diff > CONFIG.DAYS) return alert("兑换码已过期失效");
 
-        // 3. 【核心】检查是否过期
-        // 计算日期差（考虑到跨年，这里做简单处理，假设一年内）
-        let diff = currentDay - codeDay;
-        // 如果跨年了（比如码是365天生成的，今天是第2天），修正一下
-        if (diff < -300) diff = currentDay + 365 - codeDay; 
-
-        if (diff > AUTH_CONFIG.VALID_DAYS) {
-            showError("此兑换码已过期失效 (超过" + AUTH_CONFIG.VALID_DAYS + "天)");
-            return;
-        }
-        if (diff < 0) {
-            showError("无效的兑换码"); // 未来的码？不对劲
-            return;
-        }
-
-        // 4. 检查签名 (防伪造)
-        if (checkSignature(code)) {
-            unlock();
-        } else {
-            showError("兑换码错误，请核对");
-        }
-    }
-
-    function checkSignature(code) {
-        // 前4位是信息(日期+随机)，后4位是签名
-        const infoPart = code.substring(0, 4);
-        const signPart = code.substring(4, 8);
-        const secret = AUTH_CONFIG.SECRET_KEY;
-        
-        // 重复生成器的算法
-        let str = infoPart + secret;
+        // D. 验签名 (前7位算签名 -> 对比后3位)
         let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            let char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
-        }
-        let calculatedSign = Math.abs(hash).toString();
-        while (calculatedSign.length < 4) calculatedSign = "0" + calculatedSign;
+        let str = code.substring(0,7) + CONFIG.KEY;
+        for(let i=0; i<str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        let sign = Math.abs(hash).toString();
+        while(sign.length < 3) sign = "0"+sign;
         
-        return calculatedSign.substring(calculatedSign.length - 4) === signPart;
-    }
-
-    function unlock() {
-        alert("验证成功！开始测试。");
-        localStorage.setItem("scl90_unlock_time", new Date().getTime());
-        document.getElementById("authModal").classList.remove("show");
-    }
-
-    function showError(msg) {
-        alert(msg);
-        const input = document.getElementById("redeemCode");
-        input.value = "";
-        const card = document.querySelector(".auth-card");
-        if(card) {
-            card.classList.add("shake");
-            setTimeout(() => card.classList.remove("shake"), 500);
+        // 比对
+        if(sign.substring(sign.length-3) === code.substring(7,10)) {
+            pass(code);
+        } else {
+            alert("兑换码错误，请核对");
         }
+    }
+
+    // 3. 通行证
+    function pass(c) {
+        alert("验证成功！24小时内有效。");
+        localStorage.setItem("love_unlock_10", new Date().getTime());
+        // 记入黑名单
+        if(c!=="1992010600") {
+            let u = JSON.parse(localStorage.getItem("love_used_10")||"[]");
+            u.push(c);
+            localStorage.setItem("love_used_10", JSON.stringify(u));
+        }
+        document.getElementById("authModal").classList.remove("show");
+        setTimeout(() => document.getElementById("authModal").style.display = "none", 300);
     }
     // === 验证系统结束 ===
 </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=PingFang+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
 /* === 新增：验证弹窗样式 === */
@@ -2442,16 +2400,22 @@ const questions = [
 </body>
 <div class="modal-overlay" id="authModal">
     <div class="auth-card">
-        <h2 style="margin-top:0; color:#333;">访问受限</h2>
-        <p style="color:#666; font-size:14px;">本测评表为专业版，请输入兑换码解锁。</p>
+        <h2 style="margin-top:0; color:#333; margin-bottom: 10px;">访问受限</h2>
         
-        <input type="tel" id="redeemCode" class="auth-input" placeholder="请输入8位兑换码" maxlength="8">
+        <div style="background-color: #ffebeb; color: #ff2442; padding: 8px; border-radius: 6px; font-size: 14px; font-weight: bold; margin-bottom: 15px;">
+            ⚠️ 兑换码限用1次，24小时内有效
+        </div>
+
+        <p style="color:#666; font-size:14px; margin-bottom: 15px;">
+            本量表为专业版，请输入兑换码解锁。
+        </p>
+        
+        <input type="tel" id="redeemCode" class="auth-input" placeholder="请输入10位兑换码" maxlength="10">
         
         <button class="btn-verify" onclick="verifyRedeemCode()">立即验证</button>
         
-        <a href="https://www.xiaohongshu.com" target="_blank" class="btn-xhs-link">
+        <a href="https://xhslink.com/m/8reJR9UPb3D" target="_blank" class="btn-xhs-link">
             没有兑换码？去小红书获取 &gt;
         </a>
     </div>
-</div>
 </html>
