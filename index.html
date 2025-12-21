@@ -6,74 +6,118 @@
     <title>恋爱画像测评表 | 灵魂伴侣测试</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// === 验证系统开始 ===
-const AUTH_CONFIG = {
-    SECRET_KEY: "MY_LOVE_SHOP_2026" // 必须与生成器一致
-};
+    <script>
+    // === 新版验证系统 (含过期检测) ===
+    const AUTH_CONFIG = {
+        SECRET_KEY: "MY_LOVE_SHOP_2026", // 必须和生成器一致
+        VALID_DAYS: 7  // 【设置有效期】这里填 7，代表码生成后7天内必须使用，否则作废
+    };
 
-// 页面加载时运行
 document.addEventListener("DOMContentLoaded", function() {
-    checkLock(); // 检查是否需要锁住页面
-});
+        checkLock();
+    });
 
-function checkLock() {
-    const unlockTime = localStorage.getItem("scl90_unlock_time");
-    const modal = document.getElementById("authModal");
-    
-    // 如果有记录，且在24小时内，就不显示弹窗
-    if (unlockTime) {
-        const passed = (new Date().getTime() - parseInt(unlockTime)) / (1000 * 60 * 60);
-        if (passed < 24) return; 
+    // 获取一年中的第几天
+    function getCurrentDayOfYear() {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), 0, 0);
+        const diff = now - start;
+        const oneDay = 1000 * 60 * 60 * 24;
+        return Math.floor(diff / oneDay);
     }
-    // 否则显示弹窗
-    modal.classList.add("show");
-}
 
-function verifyRedeemCode() {
-    const input = document.getElementById("redeemCode");
-    const code = input.value.trim();
-    
-    // 万能后门：输入12020000直接进（你自己测试用）
-    if(code === "12020000") { unlock(); return; }
+    function checkLock() {
+        const unlockTime = localStorage.getItem("scl90_unlock_time");
+        const modal = document.getElementById("authModal");
 
-    // 算法验证
-    if (code.length === 8 && checkSignature(code)) {
-        unlock();
-    } else {
-        alert("兑换码无效！");
+        // 检查本地缓存是否在24小时内
+        if (unlockTime) {
+            const passed = (new Date().getTime() - parseInt(unlockTime)) / (1000 * 60 * 60);
+            if (passed < 24) return; // 未过期，不显示弹窗
+        }
+        // 否则显示弹窗
+        if(modal) modal.classList.add("show");
+    }
+
+    function verifyRedeemCode() {
+        const input = document.getElementById("redeemCode");
+        const code = input.value.trim();
+        const card = document.querySelector(".auth-card");
+
+        // 万能后门
+        if (code === "12020000") { unlock(); return; }
+
+        // 1. 基础长度检查
+        if (code.length !== 8) {
+            showError("兑换码格式错误");
+            return;
+        }
+
+        // 2. 提取信息
+        const codeDayStr = code.substring(0, 3); // 前3位是日期
+        const codeDay = parseInt(codeDayStr);
+        const currentDay = getCurrentDayOfYear();
+
+        // 3. 【核心】检查是否过期
+        // 计算日期差（考虑到跨年，这里做简单处理，假设一年内）
+        let diff = currentDay - codeDay;
+        // 如果跨年了（比如码是365天生成的，今天是第2天），修正一下
+        if (diff < -300) diff = currentDay + 365 - codeDay; 
+
+        if (diff > AUTH_CONFIG.VALID_DAYS) {
+            showError("此兑换码已过期失效 (超过" + AUTH_CONFIG.VALID_DAYS + "天)");
+            return;
+        }
+        if (diff < 0) {
+            showError("无效的兑换码"); // 未来的码？不对劲
+            return;
+        }
+
+        // 4. 检查签名 (防伪造)
+        if (checkSignature(code)) {
+            unlock();
+        } else {
+            showError("兑换码错误，请核对");
+        }
+    }
+
+    function checkSignature(code) {
+        // 前4位是信息(日期+随机)，后4位是签名
+        const infoPart = code.substring(0, 4);
+        const signPart = code.substring(4, 8);
+        const secret = AUTH_CONFIG.SECRET_KEY;
+        
+        // 重复生成器的算法
+        let str = infoPart + secret;
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            let char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; 
+        }
+        let calculatedSign = Math.abs(hash).toString();
+        while (calculatedSign.length < 4) calculatedSign = "0" + calculatedSign;
+        
+        return calculatedSign.substring(calculatedSign.length - 4) === signPart;
+    }
+
+    function unlock() {
+        alert("验证成功！开始测试。");
+        localStorage.setItem("scl90_unlock_time", new Date().getTime());
+        document.getElementById("authModal").classList.remove("show");
+    }
+
+    function showError(msg) {
+        alert(msg);
+        const input = document.getElementById("redeemCode");
         input.value = "";
-        document.querySelector(".auth-card").classList.add("shake");
-        setTimeout(()=>document.querySelector(".auth-card").classList.remove("shake"), 500);
+        const card = document.querySelector(".auth-card");
+        if(card) {
+            card.classList.add("shake");
+            setTimeout(() => card.classList.remove("shake"), 500);
+        }
     }
-}
-
-function checkSignature(code) {
-    const randomPart = code.substring(0, 4);
-    const signPart = code.substring(4, 8);
-    const secret = AUTH_CONFIG.SECRET_KEY;
-    
-    // 重复生成器的算法
-    let str = randomPart + secret;
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        let char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; 
-    }
-    let calculatedSign = Math.abs(hash).toString();
-    while (calculatedSign.length < 4) calculatedSign = "0" + calculatedSign;
-    
-    // 核心比对：算出来的尾号 == 输入的尾号
-    return calculatedSign.substring(calculatedSign.length - 4) === signPart;
-}
-
-function unlock() {
-    alert("验证成功！24小时内有效。");
-    localStorage.setItem("scl90_unlock_time", new Date().getTime());
-    document.getElementById("authModal").classList.remove("show");
-}
-// === 验证系统结束 ===
+    // === 验证系统结束 ===
 </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=PingFang+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -107,6 +151,7 @@ function unlock() {
 }
 .shake { animation: shake 0.5s; }
 @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} }
+
       :root {
         /* 纯正的紫色调色板 */
         --primary-light: #f5f0ff;
@@ -148,19 +193,19 @@ function unlock() {
             padding: 0 20px;
         }
         
-        /* 头部样式 */
+        /* 头部样式 - 关键修改区域 */
         header {
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-main) 100%);
             color: white;
             padding: 22px 0;
             box-shadow: 0 6px 20px var(--shadow-medium);
-            position: sticky;
-            top: 0;
+            
+            /* --- 紧急修复：取消固定定位 --- */
+            position: relative; /* 原来是 sticky */
+            /* top: 0;  <-- 这行删除了，防止吸顶 */
             z-index: 100;
-            /* 优化：增加纯色背景兜底，防止 backdrop-filter 不支持时变透明 */
+            
             background-color: rgba(106, 27, 154, 0.98); 
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
         }
         
         .header-content {
@@ -761,7 +806,7 @@ function unlock() {
             display: inline-block;
         }
         
-        /* 图表容器样式 (新增) */
+        /* 图表容器样式 */
         .chart-container {
             max-width: 500px;
             margin: 30px auto 50px;
@@ -904,15 +949,21 @@ function unlock() {
         
         /* 响应式调整 */
         @media (max-width: 768px) {
+            /* 优化：手机端缩小页眉内边距，减少占用空间 */
+            header {
+                padding: 15px 0; 
+            }
+
             .header-content {
                 flex-direction: column;
-                gap: 20px;
+                gap: 10px; /* 减小间距 */
             }
             
             .nav-links {
                 width: 100%;
                 justify-content: center;
                 flex-wrap: wrap;
+                gap: 15px; /* 减小链接间距 */
             }
             
             .intro-title {
@@ -973,7 +1024,7 @@ function unlock() {
             .nav-links {
                 flex-direction: column;
                 align-items: center;
-                gap: 15px;
+                gap: 10px; /* 进一步减小手机端间距 */
             }
             
             .intro-title {
@@ -2392,7 +2443,7 @@ const questions = [
 <div class="modal-overlay" id="authModal">
     <div class="auth-card">
         <h2 style="margin-top:0; color:#333;">访问受限</h2>
-        <p style="color:#666; font-size:14px;">本量表为专业版，请输入兑换码解锁。</p>
+        <p style="color:#666; font-size:14px;">本测评表为专业版，请输入兑换码解锁。</p>
         
         <input type="tel" id="redeemCode" class="auth-input" placeholder="请输入8位兑换码" maxlength="8">
         
@@ -2404,4 +2455,3 @@ const questions = [
     </div>
 </div>
 </html>
-
