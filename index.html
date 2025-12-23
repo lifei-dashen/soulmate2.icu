@@ -905,120 +905,72 @@
             line-height: 1.6;
         }
         
-        /* 响应式调整 */
+        /* --- 响应式调整 (高度瘦身版) --- */
         @media (max-width: 768px) {
-            /* 优化：手机端缩小页眉内边距，减少占用空间 */
+            /* 1. 极度压缩头部整体的上下高度 */
             header {
-                padding: 15px 0; 
+                padding: 10px 0; /* 原来是 22px，改成 10px */
             }
 
             .header-content {
                 flex-direction: column;
-                gap: 10px; /* 减小间距 */
+                gap: 8px; /* 减小 Logo 和导航栏之间的间距 */
             }
             
+            /* 2. 核心修改：导航链接改为“横向排列”，不再竖着堆叠 */
             .nav-links {
                 width: 100%;
-                justify-content: center;
-                flex-wrap: wrap;
-                gap: 15px; /* 减小链接间距 */
+                display: flex;
+                flex-direction: row;     /* 强制横向排列 */
+                justify-content: center; /* 居中对齐 */
+                flex-wrap: wrap;         /* 如果屏幕太窄允许自动换行 */
+                gap: 20px;               /* 链接之间的左右间距 */
+                margin-top: 2px;
             }
             
+            /* 3. 调整字体大小，让它更精致 */
+            .nav-links a {
+                font-size: 14px; 
+                padding: 4px 0;
+            }
+
+            /* 4. 压缩卡片和标题的间距，让内容往上提 */
             .intro-title {
-                font-size: 34px;
+                font-size: 28px;
+                margin-bottom: 10px;
             }
             
             .intro-subtitle {
-                font-size: 18px;
-                padding: 0 15px;
+                font-size: 16px;
+                margin-bottom: 25px;
             }
             
-            .question-card {
-                padding: 30px 25px;
+            .question-card, .result-header, .result-body, .info-card {
+                padding: 25px 20px; /* 减小卡片内部边距 */
             }
             
-            .question-title {
-                font-size: 22px;
+            .test-header {
+                margin-top: 20px; /* 减小进度条上方的空白 */
             }
-            
-            .result-header {
-                padding: 35px 25px;
-            }
-            
-            .result-title {
-                font-size: 28px;
-            }
-            
-            .result-body {
-                padding: 35px 25px;
-            }
-            
-            .user-info-summary {
-                gap: 20px;
-            }
-            
-            .user-info-item {
-                min-width: 130px;
-                padding: 15px 20px;
-            }
-            
-            .info-card {
-                padding: 30px 25px;
-            }
-             .test-header {
-                margin-top: 30px;
-             }
         }
         
         @media (max-width: 480px) {
             .logo-main {
-                font-size: 22px;
+                font-size: 20px; /* Logo 字号改小 */
             }
             
             .logo-sub {
                 font-size: 12px;
+                /* 如果你想让高度更小，可以取消下面这行的注释来隐藏副标题 */
+                /* display: none; */ 
             }
             
             .nav-links {
-                flex-direction: column;
-                align-items: center;
-                gap: 10px; /* 进一步减小手机端间距 */
+                gap: 15px; /* 小屏幕下间距再紧凑一点 */
             }
             
-            .intro-title {
-                font-size: 28px;
-            }
-            
-            .navigation-buttons {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .nav-button {
-                justify-content: center;
-                width: 100%;
-            }
-            
-            .info-buttons {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .info-button {
-                justify-content: center;
-                width: 100%;
-            }
-            
-            .result-actions {
-                flex-direction: column;
-            }
-            
-            .action-button {
-                justify-content: center;
-                width: 100%;
-            }
-           .test-header {
-               margin-top: 25px;
+            .navigation-buttons, .info-buttons, .result-actions {
+                gap: 12px;
             }
         }
     </style>
@@ -2337,7 +2289,7 @@ const questions = [
             e.preventDefault();
             // 抓取病毒式标题
             const title = resultTypes[appState.resultType].title;
-            const text = `我在恋爱画像测试中测出我是【${title}】！\n快来测测你的恋爱人格和灵魂伴侣吧：${window.location.href}`;
+            const text = `我在恋爱画像测试中测出我是【${title}】！\n快来测测你的恋爱人格和灵魂伴侣画像吧：${window.location.href}`;
             
             if (navigator.share) {
                 navigator.share({
@@ -2419,3 +2371,4 @@ const questions = [
         </a>
     </div>
 </html>
+
